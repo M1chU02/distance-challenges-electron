@@ -8,10 +8,11 @@
     "dev": "electron ."
   },
   "dependencies": {
-    "electron-store": "^9.0.0",
-    "nanoid": "^5.0.7"
+    "electron-store": "^8.1.0",
+    "nanoid": "3.3.7"
   },
   "devDependencies": {
     "electron": "^31.0.0"
-  }
+  },
+  "type": "commonjs"
 }
