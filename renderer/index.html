@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Distance Challenges Tracker</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🏁 Distance Challenges</h1>
+    <button id="newChallengeBtn" class="btn primary">+ New Challenge</button>
+  </header>
+
+  <main id="content"></main>
+
+  <!-- New/Edit Challenge Dialog -->
+  <dialog id="challengeDialog">
+    <form method="dialog" id="challengeForm" class="dialog-form">
+      <h3 id="dialogTitle">New Challenge</h3>
+      <input type="hidden" id="challengeId" />
+      <label>Name <input id="name" required placeholder="Spring 1315km"/></label>
+      <label>Sport
+        <select id="sport">
+          <option value="cycling">Cycling</option>
+          <option value="running">Running</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <div class="grid2">
+        <label>Start date <input id="startDate" type="date" required></label>
+        <label>End date <input id="endDate" type="date" required></label>
+      </div>
+      <label>Target distance (km) <input id="target" type="number" step="0.01" required></label>
+      <label>Notes (optional) <textarea id="notes" rows="3"></textarea></label>
+      <menu class="dialog-actions">
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="saveChallenge" class="btn primary">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Log Distance Dialog -->
+  <dialog id="logDialog">
+    <form method="dialog" id="logForm" class="dialog-form">
+      <h3>Log distance</h3>
+      <input type="hidden" id="logChallengeId" />
+      <div class="grid2">
+        <label>Date <input id="logDate" type="date" required></label>
+        <label>Kilometers <input id="logKm" type="number" step="0.01" required></label>
+      </div>
+      <label>Note (optional) <input id="logNote" type="text" /></label>
+      <menu class="dialog-actions">
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="saveLog" class="btn primary">Add</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>
