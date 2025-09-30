@@ -21,4 +21,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Distance Challenges
+publish:
+  - provider: github
+    owner: M1chU02
+    repo: distance-challenges-electron
 electronVersion: 31.7.7
