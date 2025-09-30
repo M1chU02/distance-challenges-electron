@@ -2,24 +2,11 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const state = {
-  challenges: []
-};
+const state = { challenges: [] };
 
-function fmt(n) {
-  const num = Number(n || 0);
-  return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-function daysBetween(aISO, bISO) {
-  const a = new Date(aISO), b = new Date(bISO);
-  return Math.max(0, Math.ceil((b - a) / (1000*60*60*24)));
-}
-function daysElapsed(startISO, todayISO) {
-  const start = new Date(startISO);
-  const today = new Date(todayISO);
-  const ms = today - start;
-  return ms < 0 ? 0 : Math.floor(ms / (1000*60*60*24)) + 1;
-}
+function fmt(n) { const num = Number(n || 0); return num.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+function daysBetween(aISO, bISO) { const a = new Date(aISO), b = new Date(bISO); return Math.max(0, Math.ceil((b - a) / (1000*60*60*24))); }
+function daysElapsed(startISO, todayISO) { const start = new Date(startISO); const today = new Date(todayISO); const ms = today - start; return ms < 0 ? 0 : Math.floor(ms / (1000*60*60*24)) + 1; }
 function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 
 function derive(ch) {
@@ -34,9 +21,8 @@ function derive(ch) {
   const avgNeededWhole = ch.targetDistanceKm / totalDays;
   const currentPace = elapsed > 0 ? done / elapsed : 0;
   const remainingKm = Math.max(0, ch.targetDistanceKm - done);
-  const avgNeededFromNow = remaining > 0 ? remainingKm / remaining : remainingKm; // if no days left, it's whatever remains
+  const avgNeededFromNow = remaining > 0 ? remainingKm / remaining : remainingKm;
 
-  // projected finish date at current pace
   let projectedFinish = null;
   if (currentPace > 0) {
     const daysNeededTotal = ch.targetDistanceKm / currentPace;
@@ -47,14 +33,7 @@ function derive(ch) {
   }
 
   const pct = ch.targetDistanceKm === 0 ? 0 : clamp01(done / ch.targetDistanceKm);
-
-  return {
-    totalDays, elapsed, remaining,
-    done, remainingKm,
-    avgNeededWhole, currentPace, avgNeededFromNow,
-    projectedFinish,
-    pct
-  };
+  return { totalDays, elapsed, remaining, done, remainingKm, avgNeededWhole, currentPace, avgNeededFromNow, projectedFinish, pct };
 }
 
 function render() {
@@ -83,10 +62,7 @@ function render() {
         <span class="badge">Done: ${fmt(d.done)} km</span>
         <span class="badge">Remaining: ${fmt(d.remainingKm)} km</span>
       </div>
-      <div class="progress" title="${(d.pct*100).toFixed(1)}%">
-        <div style="width:${(d.pct*100).toFixed(2)}%"></div>
-      </div>
-
+      <div class="progress" title="${(d.pct*100).toFixed(1)}%"><div style="width:${(d.pct*100).toFixed(2)}%"></div></div>
       <div class="kpi-grid">
         <div class="kpi"><div class="label">Total days</div><div class="value">${d.totalDays}</div></div>
         <div class="kpi"><div class="label">Days left</div><div class="value">${d.remaining}</div></div>
@@ -95,13 +71,11 @@ function render() {
         <div class="kpi"><div class="label">Your pace (km/day)</div><div class="value">${fmt(d.currentPace)}</div></div>
         <div class="kpi"><div class="label">Projected finish</div><div class="value">${d.projectedFinish ? d.projectedFinish : '—'}</div></div>
       </div>
-
       <div class="actions">
         <button class="btn primary" data-action="log" data-id="${ch.id}">Log distance</button>
         <button class="btn" data-action="edit" data-id="${ch.id}">Edit</button>
         <button class="btn danger" data-action="delete" data-id="${ch.id}">Delete</button>
       </div>
-
       <div class="logs">
         <div class="small" style="margin-bottom:6px;">Recent logs</div>
         <div class="log-list"></div>
@@ -156,20 +130,15 @@ $('#saveChallenge').addEventListener('click', async (e) => {
     notes: $('#notes').value.trim(),
   };
   const id = $('#challengeId').value;
-  if (id) {
-    await window.api.updateChallenge(id, payload);
-  } else {
-    await window.api.createChallenge(payload);
-  }
+  if (id) await window.api.updateChallenge(id, payload);
+  else await window.api.createChallenge(payload);
   challengeDialog.close();
   await refresh();
 });
 
-// Logging dialog
 function openLogDialog(chId) {
   $('#logChallengeId').value = chId;
-  const today = new Date();
-  const iso = today.toISOString().slice(0,10);
+  const iso = new Date().toISOString().slice(0,10);
   $('#logDate').value = iso;
   $('#logKm').value = '';
   $('#logNote').value = '';
@@ -187,7 +156,6 @@ $('#saveLog').addEventListener('click', async (e) => {
   await refresh();
 });
 
-// Delegated actions
 $('#content').addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;

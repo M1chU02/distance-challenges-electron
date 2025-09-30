@@ -3,16 +3,47 @@
   "version": "1.0.0",
   "description": "Electron app to track multi-sport distance challenges (running, cycling, etc.) with pacing math and progress tracking.",
   "main": "main.js",
+  "type": "commonjs",
   "scripts": {
     "start": "electron .",
-    "dev": "electron ."
+    "dev": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.example.distancechallenges",
+    "productName": "Distance Challenges",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Distance Challenges"
+    }
   },
   "dependencies": {
     "electron-store": "^8.1.0",
     "nanoid": "3.3.7"
   },
   "devDependencies": {
-    "electron": "^31.0.0"
-  },
-  "type": "commonjs"
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
 }
