@@ -1,23 +1,21 @@
-// main.js
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const Store = require("electron-store");
 const { nanoid } = require("nanoid");
-
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
+
 log.transports.file.level = "info";
 autoUpdater.logger = log;
 
 const isDev = !app.isPackaged;
 const store = new Store({ name: "challenges", defaults: { challenges: [] } });
-
 let mainWindow;
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1100,
-    height: 825,
+    width: 1150,
+    height: 780,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -27,75 +25,83 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
-  // keep DevTools off:
   win.webContents.on("devtools-opened", () => win.webContents.closeDevTools());
-
   return win;
 }
 
-function initAutoUpdate(win) {
-  if (isDev) {
-    log.info("Skipping autoUpdater in dev mode");
-    return;
-  }
+function initAutoUpdate() {
+  if (isDev) return;
 
-  // Optional: allow prerelease if you publish pre-releases
-  // autoUpdater.allowPrerelease = true;
-
-  // Start a check soon after boot (and then you can schedule more checks if you want)
-  setTimeout(() => {
-    log.info("Checking for updates...");
-    autoUpdater.checkForUpdatesAndNotify();
-  }, 3000);
-
-  // Show simple status to user
-  autoUpdater.on("checking-for-update", () => log.info("Checking for update"));
-  autoUpdater.on("update-available", (info) =>
-    log.info("Update available", info?.version)
+  autoUpdater.on("checking-for-update", () =>
+    send("update:status", { status: "checking" })
   );
-  autoUpdater.on("update-not-available", () => log.info("No update available"));
+  autoUpdater.on("update-available", (info) =>
+    send("update:status", { status: "available", info })
+  );
+  autoUpdater.on("update-not-available", () =>
+    send("update:status", { status: "none" })
+  );
 
-  autoUpdater.on("download-progress", (p) => {
-    // You can surface p.percent to the UI via IPC if you like
-    log.info(`Downloading: ${Math.round(p.percent)}%`);
+  autoUpdater.on("download-progress", (p) =>
+    send("update:status", {
+      status: "downloading",
+      percent: p.percent,
+      bps: p.bytesPerSecond,
+      transferred: p.transferred,
+      total: p.total,
+    })
+  );
+
+  autoUpdater.on("error", (err) => {
+    log.error("autoUpdater error", err);
+    send("update:status", {
+      status: "error",
+      message: String(err.message || err),
+    });
   });
 
   autoUpdater.on("update-downloaded", async (info) => {
-    const { response } = await dialog.showMessageBox(win, {
+    send("update:status", { status: "downloaded", info });
+    const { response } = await dialog.showMessageBox(mainWindow, {
       type: "question",
       buttons: ["Restart now", "Later"],
       defaultId: 0,
       cancelId: 1,
-      message: `Update ${info?.version || ""} downloaded`,
-      detail: "Restart now to install the update.",
+      message: `Update ${info?.version || ""} ready`,
+      detail: "The app will restart to complete installation.",
     });
     if (response === 0) {
+      send("update:status", { status: "restarting" });
       autoUpdater.quitAndInstall();
     }
   });
 
-  autoUpdater.on("error", (err) => log.error("autoUpdater error", err));
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 2500);
 }
+
+ipcMain.handle("update:check", async () => {
+  if (isDev) return { ok: false, reason: "dev" };
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return { ok: true, info: r?.updateInfo || null };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
 
 app.whenReady().then(() => {
   mainWindow = createWindow();
-  initAutoUpdate(mainWindow); // <-- NEW
+  initAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow();
-      initAutoUpdate(mainWindow);
+      initAutoUpdate();
     }
   });
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
-});
-
-ipcMain.handle("update:check", async () => {
-  if (isDev) return { ok: false, reason: "dev" };
-  const r = await autoUpdater.checkForUpdates();
-  return { ok: true, info: r?.updateInfo };
 });
 
 // Helper

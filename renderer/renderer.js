@@ -1,4 +1,3 @@
-// renderer.js
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -130,8 +129,7 @@ function render() {
       <div class="logs">
         <div class="small" style="margin-bottom:6px;">Recent logs</div>
         <div class="log-list"></div>
-      </div>
-    `;
+      </div>`;
 
     const logList = $(".log-list", card);
     const recent = [...(ch.distanceLog || [])]
@@ -249,6 +247,79 @@ $("#checkUpdateBtn").addEventListener("click", async () => {
     }
   } catch (err) {
     alert("Error checking updates: " + err.message);
+  }
+});
+
+const overlay = document.getElementById("updateOverlay");
+const bar = document.getElementById("updateBar");
+const msg = document.getElementById("updateMsg");
+document
+  .getElementById("updClose")
+  .addEventListener("click", () => (overlay.hidden = true));
+document.getElementById("checkUpdateBtn").addEventListener("click", () => {
+  overlay.hidden = false;
+  msg.textContent = "Checking for updates…";
+  bar.style.width = "10%";
+  window.api.checkForUpdates().catch(() => {});
+});
+
+function fmtBytes(n) {
+  if (!n && n !== 0) return "";
+  const u = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  let x = n;
+  while (x >= 1024 && i < u.length - 1) {
+    x /= 1024;
+    i++;
+  }
+  return `${x.toFixed(1)} ${u[i]}`;
+}
+
+window.api.onUpdateStatus((p) => {
+  if (
+    [
+      "checking",
+      "available",
+      "downloading",
+      "downloaded",
+      "error",
+      "restarting",
+    ].includes(p.status)
+  )
+    overlay.hidden = false;
+
+  switch (p.status) {
+    case "checking":
+      msg.textContent = "Checking for updates…";
+      bar.style.width = "15%";
+      break;
+    case "available":
+      msg.textContent = "Update found — downloading…";
+      bar.style.width = "20%";
+      break;
+    case "downloading":
+      const pct = Math.round(p.percent || 0);
+      msg.textContent = `Downloading ${pct}% (${fmtBytes(
+        p.transferred
+      )} / ${fmtBytes(p.total)})`;
+      bar.style.width = `${pct}%`;
+      break;
+    case "downloaded":
+      msg.textContent = "Update downloaded! You’ll be asked to restart.";
+      bar.style.width = "100%";
+      break;
+    case "none":
+      msg.textContent = "No updates available.";
+      bar.style.width = "100%";
+      setTimeout(() => (overlay.hidden = true), 1500);
+      break;
+    case "error":
+      msg.textContent = `Update error: ${p.message || "unknown"}`;
+      break;
+    case "restarting":
+      msg.textContent = "Update installed! Restarting…";
+      bar.style.width = "100%";
+      break;
   }
 });
 
