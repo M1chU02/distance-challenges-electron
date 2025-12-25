@@ -90,6 +90,38 @@
       </form>
     </dialog>
 
+    <!-- View All Activities Dialog -->
+    <dialog id="activitiesDialog">
+      <form
+        method="dialog"
+        class="dialog-form"
+        style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        ">
+        <h3 id="activitiesTitle">All Activities</h3>
+        <!-- Scrollable list container -->
+        <div
+          id="activitiesList"
+          style="
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            border: 1px solid #1f2947;
+            border-radius: 8px;
+            padding: 8px;
+            background: #0b1020;
+          ">
+          <!-- Items injected here -->
+        </div>
+        <menu class="dialog-actions">
+          <button value="cancel" class="btn">Close</button>
+        </menu>
+      </form>
+    </dialog>
+
     <script src="./renderer.js"></script>
   </body>
 </html>

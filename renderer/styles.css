@@ -251,10 +251,11 @@ dialog {
 }
 
 .logs {
-  max-height: 280px;
-  overflow-y: auto;
+  /* Removed max-height to avoid internal scrolling as per request */
+  /* max-height: 280px; */
+  /* overflow-y: auto; */
   padding-right: 6px;
-  scrollbar-width: thin;
+  /* scrollbar-width: thin; */
 }
 .logs::-webkit-scrollbar {
   width: 6px;

@@ -147,6 +147,19 @@ function render() {
       logList.appendChild(row);
     });
 
+    if ((ch.distanceLog || []).length > 6) {
+      const viewAllBtn = document.createElement("button");
+      viewAllBtn.className = "btn";
+      viewAllBtn.style.marginTop = "8px";
+      viewAllBtn.style.width = "100%";
+      viewAllBtn.style.fontSize = "12px";
+      viewAllBtn.textContent = `View all (${ch.distanceLog.length})`;
+      viewAllBtn.dataset.action = "view-all";
+      viewAllBtn.dataset.id = ch.id;
+      // Add a visual separator or just append
+      logList.appendChild(viewAllBtn);
+    }
+
     root.appendChild(card);
   });
 }
@@ -159,6 +172,7 @@ async function refresh() {
 // Dialog helpers
 const challengeDialog = $("#challengeDialog");
 const logDialog = $("#logDialog");
+const activitiesDialog = $("#activitiesDialog");
 
 $("#newChallengeBtn").addEventListener("click", () => openChallengeDialog());
 
@@ -231,7 +245,83 @@ $("#content").addEventListener("click", async (e) => {
     const logId = btn.dataset.log;
     if (confirm("Remove this log entry?")) {
       await window.api.deleteLog(id, logId);
+      // Close all dialogs just in case, or refresh specific one.
+      // Easiest is to refresh data and re-render.
+      // If we are in "View All", we might want to keep it open or close it.
+      // Simpler to close specific dialog or let refresh handle main UI.
+      // But if we are in activitiesDialog, we need to re-render that list too or close it.
+      // Current flow:
       await refresh();
+
+      // If activities dialog is open, re-render its list if valid
+      if (activitiesDialog.open) {
+        const updatedCh = state.challenges.find((c) => c.id === id);
+        if (updatedCh) openActivitiesDialog(updatedCh);
+        else activitiesDialog.close();
+      }
+    }
+  }
+  if (action === "view-all") {
+    const ch = state.challenges.find((c) => c.id === id);
+    openActivitiesDialog(ch);
+  }
+});
+
+function openActivitiesDialog(ch) {
+  if (!ch) return;
+  $("#activitiesTitle").textContent = `${ch.name} — All Activities`;
+  const list = $("#activitiesList");
+  list.innerHTML = "";
+
+  const allLogs = [...(ch.distanceLog || [])].sort((a, b) =>
+    b.dateISO.localeCompare(a.dateISO)
+  );
+
+  allLogs.forEach((l) => {
+    const row = document.createElement("div");
+    row.className = "log";
+    row.innerHTML = `<div>${l.dateISO} • <b>${fmt(l.km)}</b> km ${
+      l.note ? "• " + l.note : ""
+    }</div>
+      <button class="btn" data-action="delete-log" data-id="${
+        ch.id
+      }" data-log="${l.id}">Remove</button>`;
+    list.appendChild(row);
+  });
+
+  // Need to bind events inside the dialog?
+  // Actually the main #content listener handles bubbling, BUT this dialog is NOT inside #content.
+  // We need a listener on the dialog or ensuring bubbling reaches body/document if possible,
+  // but dialogs usually trap focus/events.
+  // Let's check where the dialog is in DOM. It is a sibling of #content.
+  // So #content listener WON'T catch clicks inside the dialog.
+
+  // Let's add listener to the list container once, or delegated.
+  // We can attach `onclick` to the list container here or global listener.
+  // To avoid duplicate listeners, let's just make a global delegated listener for the dialog.
+  activitiesDialog.showModal();
+}
+
+// Global listener for dialog interactions
+$("#activitiesDialog").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  // We only care about delete-log here for now
+  if (action === "delete-log") {
+    const chId = btn.dataset.id;
+    const logId = btn.dataset.log;
+    if (confirm("Remove this log entry?")) {
+      await window.api.deleteLog(chId, logId);
+      await refresh();
+      // Re-hydrate the dialog view
+      const updatedCh = state.challenges.find((c) => c.id === chId);
+      if (updatedCh && activitiesDialog.open) {
+        openActivitiesDialog(updatedCh);
+      } else {
+        activitiesDialog.close();
+      }
     }
   }
 });
