@@ -326,32 +326,29 @@ $("#activitiesDialog").addEventListener("click", async (e) => {
   }
 });
 
-$("#checkUpdateBtn").addEventListener("click", async () => {
-  try {
-    const res = await window.api.checkForUpdates();
-    if (res.ok) {
-      alert("Checking for updates…");
-      console.log("Update info:", res.info);
-    } else {
-      alert("No update (dev mode or not configured).");
-    }
-  } catch (err) {
-    alert("Error checking updates: " + err.message);
-  }
-});
-
 const overlay = document.getElementById("updateOverlay");
 const bar = document.getElementById("updateBar");
 const msg = document.getElementById("updateMsg");
 document
   .getElementById("updClose")
   .addEventListener("click", () => (overlay.hidden = true));
-document.getElementById("checkUpdateBtn").addEventListener("click", () => {
-  overlay.hidden = false;
-  msg.textContent = "Checking for updates…";
-  bar.style.width = "10%";
-  window.api.checkForUpdates().catch(() => {});
-});
+document
+  .getElementById("checkUpdateBtn")
+  .addEventListener("click", async () => {
+    overlay.hidden = false;
+    msg.textContent = "Checking for updates…";
+    bar.style.width = "10%";
+    try {
+      const res = await window.api.checkForUpdates();
+      if (!res.ok && res.reason === "dev") {
+        msg.textContent = "Dev mode: No updates.";
+        bar.style.width = "100%";
+        setTimeout(() => (overlay.hidden = true), 2000);
+      }
+    } catch (err) {
+      msg.textContent = "Error: " + String(err);
+    }
+  });
 
 function fmtBytes(n) {
   if (!n && n !== 0) return "";
