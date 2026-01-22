@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require("electron");
+Menu.setApplicationMenu(null);
 const path = require("path");
 const Store = require("electron-store");
 const { nanoid } = require("nanoid");
@@ -16,6 +17,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1300,
     height: 900,
+    icon: path.join(__dirname, "logo.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -33,13 +35,13 @@ function initAutoUpdate() {
   if (isDev) return;
 
   autoUpdater.on("checking-for-update", () =>
-    send("update:status", { status: "checking" })
+    send("update:status", { status: "checking" }),
   );
   autoUpdater.on("update-available", (info) =>
-    send("update:status", { status: "available", info })
+    send("update:status", { status: "available", info }),
   );
   autoUpdater.on("update-not-available", () =>
-    send("update:status", { status: "none" })
+    send("update:status", { status: "none" }),
   );
 
   autoUpdater.on("download-progress", (p) =>
@@ -49,7 +51,7 @@ function initAutoUpdate() {
       bps: p.bytesPerSecond,
       transferred: p.transferred,
       total: p.total,
-    })
+    }),
   );
 
   autoUpdater.on("error", (err) => {
@@ -170,7 +172,7 @@ ipcMain.handle("logs:delete", (event, { id, logId }) => {
   const idx = challenges.findIndex((c) => c.id === id);
   if (idx === -1) throw new Error("Challenge not found");
   challenges[idx].distanceLog = challenges[idx].distanceLog.filter(
-    (l) => l.id !== logId
+    (l) => l.id !== logId,
   );
   challenges[idx].updatedAt = new Date().toISOString();
   saveChallenges(challenges);
