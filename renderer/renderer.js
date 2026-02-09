@@ -23,49 +23,77 @@ function clamp01(x) {
 }
 
 function derive(ch) {
-  const start = new Date(ch.startDate);
-  const end = new Date(ch.endDate);
-  const today = new Date();
-  const totalDays = daysBetween(
-    start.toISOString(),
-    new Date(end.getTime() + 24 * 3600 * 1000).toISOString()
-  ); // inclusive end
-  const elapsed = daysElapsed(start.toISOString(), today.toISOString());
-  const remaining = Math.max(0, totalDays - elapsed);
+  try {
+    const start = new Date(ch.startDate);
+    const end = new Date(ch.endDate);
 
-  const done = (ch.distanceLog || []).reduce(
-    (s, l) => s + Number(l.km || 0),
-    0
-  );
-  const avgNeededWhole = ch.targetDistanceKm / totalDays;
-  const currentPace = elapsed > 0 ? done / elapsed : 0;
-  const remainingKm = Math.max(0, ch.targetDistanceKm - done);
-  const avgNeededFromNow =
-    remaining > 0 ? remainingKm / remaining : remainingKm;
+    // Check if dates are valid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new Error("Invalid date");
+    }
 
-  let projectedFinish = null;
-  if (currentPace > 0) {
-    const daysNeededTotal = ch.targetDistanceKm / currentPace;
-    const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - elapsed));
-    const proj = new Date(today);
-    proj.setDate(proj.getDate() + extraDaysNeeded);
-    projectedFinish = proj.toISOString().slice(0, 10);
+    const today = new Date();
+    const totalDays = daysBetween(
+      start.toISOString(),
+      new Date(end.getTime() + 24 * 3600 * 1000).toISOString(),
+    ); // inclusive end
+    const elapsed = daysElapsed(start.toISOString(), today.toISOString());
+    const remaining = Math.max(0, totalDays - elapsed);
+
+    const done = (ch.distanceLog || []).reduce(
+      (s, l) => s + Number(l.km || 0),
+      0,
+    );
+    const avgNeededWhole = ch.targetDistanceKm / totalDays;
+    const currentPace = elapsed > 0 ? done / elapsed : 0;
+    const remainingKm = Math.max(0, ch.targetDistanceKm - done);
+    const avgNeededFromNow =
+      remaining > 0 ? remainingKm / remaining : remainingKm;
+
+    let projectedFinish = null;
+    if (currentPace > 0) {
+      const daysNeededTotal = ch.targetDistanceKm / currentPace;
+      const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - elapsed));
+      const proj = new Date(today);
+      proj.setDate(proj.getDate() + extraDaysNeeded);
+      projectedFinish = proj.toISOString().slice(0, 10);
+    }
+
+    const pct =
+      ch.targetDistanceKm === 0 ? 0 : clamp01(done / ch.targetDistanceKm);
+    return {
+      totalDays,
+      elapsed,
+      remaining,
+      done,
+      remainingKm,
+      avgNeededWhole,
+      currentPace,
+      avgNeededFromNow,
+      projectedFinish,
+      pct,
+      error: null,
+    };
+  } catch (err) {
+    // Return safe defaults if date parsing fails
+    const done = (ch.distanceLog || []).reduce(
+      (s, l) => s + Number(l.km || 0),
+      0,
+    );
+    return {
+      totalDays: 0,
+      elapsed: 0,
+      remaining: 0,
+      done,
+      remainingKm: ch.targetDistanceKm - done,
+      avgNeededWhole: 0,
+      currentPace: 0,
+      avgNeededFromNow: 0,
+      projectedFinish: null,
+      pct: 0,
+      error: "Invalid dates - please edit this challenge to fix",
+    };
   }
-
-  const pct =
-    ch.targetDistanceKm === 0 ? 0 : clamp01(done / ch.targetDistanceKm);
-  return {
-    totalDays,
-    elapsed,
-    remaining,
-    done,
-    remainingKm,
-    avgNeededWhole,
-    currentPace,
-    avgNeededFromNow,
-    projectedFinish,
-    pct,
-  };
 }
 
 function render() {
@@ -86,16 +114,21 @@ function render() {
     const card = document.createElement("div");
     card.className = "card";
 
+    const errorBanner = d.error
+      ? `<div style="background:#ff4444;color:white;padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px;">⚠️ ${d.error}</div>`
+      : "";
+
     card.innerHTML = `
       <h3>${ch.name}</h3>
-      <div class="meta">${ch.sport} • ${ch.startDate} → ${ch.endDate}</div>
+      <div class="meta">${ch.sport} • ${ch.startDate || "N/A"} → ${ch.endDate || "N/A"}</div>
+      ${errorBanner}
       <div class="row" style="margin-bottom:8px;">
         <span class="badge">Target: ${fmt(ch.targetDistanceKm)} km</span>
         <span class="badge">Done: ${fmt(d.done)} km</span>
         <span class="badge">Remaining: ${fmt(d.remainingKm)} km</span>
       </div>
       <div class="progress" title="${(d.pct * 100).toFixed(
-        1
+        1,
       )}%"><div style="width:${(d.pct * 100).toFixed(2)}%"></div></div>
       <div class="kpi-grid">
         <div class="kpi"><div class="label">Total days</div><div class="value">${
@@ -105,13 +138,13 @@ function render() {
           d.remaining
         }</div></div>
         <div class="kpi"><div class="label">Avg/day (overall)</div><div class="value">${fmt(
-          d.avgNeededWhole
+          d.avgNeededWhole,
         )}</div></div>
         <div class="kpi"><div class="label">Avg/day (from now)</div><div class="value">${fmt(
-          d.avgNeededFromNow
+          d.avgNeededFromNow,
         )}</div></div>
         <div class="kpi"><div class="label">Your pace (km/day)</div><div class="value">${fmt(
-          d.currentPace
+          d.currentPace,
         )}</div></div>
         <div class="kpi"><div class="label">Projected finish</div><div class="value">${
           d.projectedFinish ? d.projectedFinish : "—"
@@ -274,7 +307,7 @@ function openActivitiesDialog(ch) {
   list.innerHTML = "";
 
   const allLogs = [...(ch.distanceLog || [])].sort((a, b) =>
-    b.dateISO.localeCompare(a.dateISO)
+    b.dateISO.localeCompare(a.dateISO),
   );
 
   allLogs.forEach((l) => {
@@ -387,7 +420,7 @@ window.api.onUpdateStatus((p) => {
     case "downloading":
       const pct = Math.round(p.percent || 0);
       msg.textContent = `Downloading ${pct}% (${fmtBytes(
-        p.transferred
+        p.transferred,
       )} / ${fmtBytes(p.total)})`;
       bar.style.width = `${pct}%`;
       break;
@@ -414,6 +447,6 @@ refresh().catch((err) => {
   console.error(err);
   const root = document.getElementById("content");
   root.innerHTML = `<div class="card"><h3>Something went wrong</h3><p class="small">${String(
-    err
+    err,
   )}</p></div>`;
 });

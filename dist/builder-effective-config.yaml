@@ -9,6 +9,7 @@ files:
       - preload.js
       - renderer/**/*
       - package.json
+      - logo.png
 asar: true
 win:
   target:
