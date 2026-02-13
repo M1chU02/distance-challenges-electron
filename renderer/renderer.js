@@ -154,6 +154,7 @@ function render() {
         <button class="btn primary" data-action="log" data-id="${
           ch.id
         }">Log distance</button>
+        <button class="btn primary" data-action="update-progress" data-id="${ch.id}">Update Progress</button>
         <button class="btn" data-action="edit" data-id="${ch.id}">Edit</button>
         <button class="btn danger" data-action="delete" data-id="${
           ch.id
@@ -258,12 +259,111 @@ $("#saveLog").addEventListener("click", async (e) => {
   await refresh();
 });
 
+// Update Progress Dialog
+const updateProgressDialog = $("#updateProgressDialog");
+let currentChallengeForUpdate = null;
+
+function openUpdateProgressDialog(chId) {
+  const ch = state.challenges.find((c) => c.id === chId);
+  if (!ch) return;
+
+  currentChallengeForUpdate = ch;
+  const d = derive(ch);
+
+  $("#updateChallengeId").value = chId;
+  const iso = new Date().toISOString().slice(0, 10);
+  $("#updateDate").value = iso;
+  $("#updateKm").value = "";
+  $("#updateNote").value = "";
+
+  // Reset to "add" mode
+  const addRadio = document.querySelector(
+    'input[name="updateMode"][value="add"]',
+  );
+  if (addRadio) addRadio.checked = true;
+
+  // Update preview
+  $("#currentValue").textContent = `${fmt(d.done)} km`;
+  $("#newValue").textContent = `${fmt(d.done)} km`;
+
+  updateProgressDialog.showModal();
+}
+
+// Update preview when mode or value changes
+function updatePreview() {
+  if (!currentChallengeForUpdate) return;
+
+  const d = derive(currentChallengeForUpdate);
+  const currentDone = d.done;
+  const mode =
+    document.querySelector('input[name="updateMode"]:checked')?.value || "add";
+  const inputValue = parseFloat($("#updateKm").value) || 0;
+
+  $("#currentValue").textContent = `${fmt(currentDone)} km`;
+
+  let newValue = currentDone;
+  if (mode === "add") {
+    newValue = currentDone + inputValue;
+  } else if (mode === "set") {
+    newValue = inputValue;
+  }
+
+  $("#newValue").textContent = `${fmt(newValue)} km`;
+}
+
+// Attach listeners for preview updates
+$("#updateKm").addEventListener("input", updatePreview);
+$$('input[name="updateMode"]').forEach((radio) => {
+  radio.addEventListener("change", updatePreview);
+});
+
+$("#saveUpdate").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const id = $("#updateChallengeId").value;
+  const dateISO = $("#updateDate").value;
+  const inputValue = parseFloat($("#updateKm").value);
+  const note = $("#updateNote").value.trim();
+  const mode =
+    document.querySelector('input[name="updateMode"]:checked')?.value || "add";
+
+  if (isNaN(inputValue) || inputValue <= 0) {
+    alert("Please enter a valid positive number");
+    return;
+  }
+
+  let kmToAdd = inputValue;
+
+  if (mode === "set") {
+    // Calculate difference
+    const ch = state.challenges.find((c) => c.id === id);
+    if (!ch) return;
+    const d = derive(ch);
+    kmToAdd = inputValue - d.done;
+
+    if (kmToAdd < 0) {
+      if (
+        !confirm(
+          `This will reduce your progress by ${fmt(Math.abs(kmToAdd))} km. Continue?`,
+        )
+      ) {
+        return;
+      }
+    }
+  }
+
+  await window.api.addLog(id, dateISO, kmToAdd, note);
+  updateProgressDialog.close();
+  currentChallengeForUpdate = null;
+  await refresh();
+});
+
 $("#content").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
   const action = btn.dataset.action;
   const id = btn.dataset.id;
   if (action === "log") openLogDialog(id);
+  if (action === "update-progress") openUpdateProgressDialog(id);
   if (action === "edit") {
     const ch = state.challenges.find((c) => c.id === id);
     openChallengeDialog(ch);
