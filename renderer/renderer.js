@@ -61,6 +61,12 @@ function derive(ch) {
 
     const pct =
       ch.targetDistanceKm === 0 ? 0 : clamp01(done / ch.targetDistanceKm);
+
+    // How many km should have been done by now at perfect linear pace?
+    const expectedByNow = avgNeededWhole * elapsed;
+    // Positive = ahead of pace, negative = behind
+    const paceOffset = done - expectedByNow;
+
     return {
       totalDays,
       elapsed,
@@ -72,6 +78,7 @@ function derive(ch) {
       avgNeededFromNow,
       projectedFinish,
       pct,
+      paceOffset,
       error: null,
     };
   } catch (err) {
@@ -91,6 +98,7 @@ function derive(ch) {
       avgNeededFromNow: 0,
       projectedFinish: null,
       pct: 0,
+      paceOffset: 0,
       error: "Invalid dates - please edit this challenge to fix",
     };
   }
@@ -149,6 +157,9 @@ function render() {
         <div class="kpi"><div class="label">Projected finish</div><div class="value">${
           d.projectedFinish ? d.projectedFinish : "—"
         }</div></div>
+        <div class="kpi"><div class="label">vs Pace</div><div class="value" style="color:${
+          d.paceOffset >= 0 ? "#4ade80" : "#f87171"
+        }">${d.paceOffset >= 0 ? "+" : ""}${fmt(d.paceOffset)} km</div></div>
       </div>
       <div class="actions">
         <button class="btn primary" data-action="log" data-id="${
