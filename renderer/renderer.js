@@ -37,23 +37,34 @@ function derive(ch) {
       start.toISOString(),
       new Date(end.getTime() + 24 * 3600 * 1000).toISOString(),
     ); // inclusive end
-    const elapsed = daysElapsed(start.toISOString(), today.toISOString());
-    const remaining = Math.max(0, totalDays - elapsed);
+    
+    // Cap elapsed days at totalDays if the challenge has ended
+    const actualElapsed = daysElapsed(start.toISOString(), today.toISOString());
+    const elapsedPace = Math.min(totalDays, actualElapsed);
+    const remaining = Math.max(0, totalDays - actualElapsed);
 
     const done = (ch.distanceLog || []).reduce(
       (s, l) => s + Number(l.km || 0),
       0,
     );
+    const isCompleted = done >= ch.targetDistanceKm;
+    const isExpired = actualElapsed > totalDays && !isCompleted;
+
     const avgNeededWhole = ch.targetDistanceKm / totalDays;
-    const currentPace = elapsed > 0 ? done / elapsed : 0;
+    // Pace uses actual elapsed to show real current speed, but vs Pace uses capped elapsed
+    const currentPace = actualElapsed > 0 ? done / actualElapsed : 0;
     const remainingKm = Math.max(0, ch.targetDistanceKm - done);
     const avgNeededFromNow =
       remaining > 0 ? remainingKm / remaining : remainingKm;
 
     let projectedFinish = null;
-    if (currentPace > 0) {
+    if (isCompleted) {
+      projectedFinish = "Finished";
+    } else if (actualElapsed > totalDays) {
+      projectedFinish = "Expired";
+    } else if (currentPace > 0) {
       const daysNeededTotal = ch.targetDistanceKm / currentPace;
-      const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - elapsed));
+      const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - actualElapsed));
       const proj = new Date(today);
       proj.setDate(proj.getDate() + extraDaysNeeded);
       projectedFinish = proj.toISOString().slice(0, 10);
@@ -63,13 +74,14 @@ function derive(ch) {
       ch.targetDistanceKm === 0 ? 0 : clamp01(done / ch.targetDistanceKm);
 
     // How many km should have been done by now at perfect linear pace?
-    const expectedByNow = avgNeededWhole * elapsed;
+    // Cap this at target distance
+    const expectedByNow = avgNeededWhole * elapsedPace;
     // Positive = ahead of pace, negative = behind
     const paceOffset = done - expectedByNow;
 
     return {
       totalDays,
-      elapsed,
+      elapsed: actualElapsed,
       remaining,
       done,
       remainingKm,

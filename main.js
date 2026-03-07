@@ -11,12 +11,23 @@ autoUpdater.logger = log;
 
 const isDev = !app.isPackaged;
 const store = new Store({ name: "challenges", defaults: { challenges: [] } });
+const windowStore = new Store({
+  name: "window-state",
+  defaults: { width: 1300, height: 900 },
+});
 let mainWindow;
 
 function createWindow() {
-  const win = new BrowserWindow({
+  const { width, height, x, y } = windowStore.get("bounds", {
     width: 1300,
     height: 900,
+  });
+
+  const win = new BrowserWindow({
+    width,
+    height,
+    x,
+    y,
     icon: path.join(__dirname, "logo.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -25,6 +36,13 @@ function createWindow() {
       sandbox: false,
     },
   });
+
+  const saveBounds = () => {
+    windowStore.set("bounds", win.getBounds());
+  };
+
+  win.on("resize", saveBounds);
+  win.on("move", saveBounds);
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
   win.webContents.on("devtools-opened", () => win.webContents.closeDevTools());
