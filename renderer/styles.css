@@ -205,6 +205,60 @@ dialog {
   font-size: 11px;
   padding: 4px 8px;
 }
+
+.milestones {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #1f2947;
+}
+.milestones-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.milestones-header .btn {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.milestone-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+.milestone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #1f2947;
+  background: #0e1429;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.milestone-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.milestone-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.milestone-kpis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.milestone .btn.danger {
+  padding: 6px 10px;
+  font-size: 11px;
+}
 .footer-note {
   text-align: center;
   color: var(--muted);

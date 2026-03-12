@@ -7,6 +7,11 @@ function fmt(n) {
   const num = Number(n || 0);
   return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
+function fmtSignedKm(n) {
+  const x = Number(n || 0);
+  const sign = x >= 0 ? "+" : "";
+  return `${sign}${fmt(x)} km`;
+}
 function daysBetween(aISO, bISO) {
   const a = new Date(aISO),
     b = new Date(bISO);
@@ -20,6 +25,27 @@ function daysElapsed(startISO, todayISO) {
 }
 function clamp01(x) {
   return Math.max(0, Math.min(1, x));
+}
+
+function newId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch {}
+  return `ms_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+}
+
+function normalizeMilestones(ch) {
+  const list = Array.isArray(ch.milestones) ? ch.milestones : [];
+  const target = Number(ch.targetDistanceKm || 0);
+  return list
+    .map((m) => ({
+      id: String(m.id || newId()),
+      distanceKm: Number(m.distanceKm),
+      note: String(m.note || ""),
+    }))
+    .filter((m) => Number.isFinite(m.distanceKm) && m.distanceKm > 0)
+    .filter((m) => (target > 0 ? m.distanceKm <= target : true))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
 function derive(ch) {
@@ -82,6 +108,7 @@ function derive(ch) {
     return {
       totalDays,
       elapsed: actualElapsed,
+      elapsedPace,
       remaining,
       done,
       remainingKm,
@@ -102,6 +129,7 @@ function derive(ch) {
     return {
       totalDays: 0,
       elapsed: 0,
+      elapsedPace: 0,
       remaining: 0,
       done,
       remainingKm: ch.targetDistanceKm - done,
@@ -114,6 +142,34 @@ function derive(ch) {
       error: "Invalid dates - please edit this challenge to fix",
     };
   }
+}
+
+function projectedDateForDistance(ch, d, distanceKm) {
+  const today = new Date();
+  const targetDistance = Number(distanceKm || 0);
+  if (!Number.isFinite(targetDistance) || targetDistance <= 0) return "—";
+
+  if (d.done >= targetDistance) return "Reached";
+
+  if (d.totalDays > 0 && d.elapsed > d.totalDays) return "Expired";
+
+  if (d.currentPace > 0) {
+    const daysNeededTotal = targetDistance / d.currentPace;
+    const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - d.elapsed));
+    const proj = new Date(today);
+    proj.setDate(proj.getDate() + extraDaysNeeded);
+    return proj.toISOString().slice(0, 10);
+  }
+
+  return "—";
+}
+
+function milestoneVsPaceOffset(ch, d, milestoneKm) {
+  const m = Number(milestoneKm || 0);
+  if (!Number.isFinite(m) || m <= 0 || d.totalDays <= 0) return 0;
+  const avgNeededForMilestone = m / d.totalDays;
+  const expectedByNow = Math.min(m, avgNeededForMilestone * d.elapsedPace);
+  return d.done - expectedByNow;
 }
 
 function render() {
@@ -171,7 +227,14 @@ function render() {
         }</div></div>
         <div class="kpi"><div class="label">vs Pace</div><div class="value" style="color:${
           d.paceOffset >= 0 ? "#4ade80" : "#f87171"
-        }">${d.paceOffset >= 0 ? "+" : ""}${fmt(d.paceOffset)} km</div></div>
+        }">${fmtSignedKm(d.paceOffset)}</div></div>
+      </div>
+      <div class="milestones">
+        <div class="milestones-header">
+          <div class="small">Milestones</div>
+          <button class="btn" data-action="add-milestone" data-id="${ch.id}">+ Add Milestone</button>
+        </div>
+        <div class="milestone-list"></div>
       </div>
       <div class="actions">
         <button class="btn primary" data-action="log" data-id="${
@@ -187,6 +250,37 @@ function render() {
         <div class="small" style="margin-bottom:6px;">Recent logs</div>
         <div class="log-list"></div>
       </div>`;
+
+    const milestoneList = $(".milestone-list", card);
+    const milestones = normalizeMilestones(ch);
+    if (milestones.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "small";
+      empty.style.marginTop = "6px";
+      empty.textContent = "No milestones yet.";
+      milestoneList.appendChild(empty);
+    } else {
+      milestones.forEach((m) => {
+        const offset = milestoneVsPaceOffset(ch, d, m.distanceKm);
+        const proj = projectedDateForDistance(ch, d, m.distanceKm);
+        const row = document.createElement("div");
+        row.className = "milestone";
+        row.innerHTML = `
+          <div class="milestone-main">
+            <div class="milestone-title">
+              <span class="badge">At ${fmt(m.distanceKm)} km</span>
+              ${m.note ? `<span class="small">${m.note}</span>` : ""}
+            </div>
+            <div class="milestone-kpis">
+              <div class="small">vs pace: <b style="color:${offset >= 0 ? "#4ade80" : "#f87171"}">${fmtSignedKm(offset)}</b></div>
+              <div class="small">projected: <b>${proj}</b></div>
+            </div>
+          </div>
+          <button class="btn danger" data-action="delete-milestone" data-id="${ch.id}" data-ms="${m.id}">Remove</button>
+        `;
+        milestoneList.appendChild(row);
+      });
+    }
 
     const logList = $(".log-list", card);
     const recent = [...(ch.distanceLog || [])]
@@ -230,6 +324,7 @@ async function refresh() {
 const challengeDialog = $("#challengeDialog");
 const logDialog = $("#logDialog");
 const activitiesDialog = $("#activitiesDialog");
+const milestoneDialog = $("#milestoneDialog");
 
 $("#newChallengeBtn").addEventListener("click", () => openChallengeDialog());
 
@@ -279,6 +374,47 @@ $("#saveLog").addEventListener("click", async (e) => {
   const note = $("#logNote").value.trim();
   await window.api.addLog(id, dateISO, km, note);
   logDialog.close();
+  await refresh();
+});
+
+function openMilestoneDialog(chId) {
+  $("#milestoneChallengeId").value = chId;
+  $("#milestoneKm").value = "";
+  $("#milestoneNote").value = "";
+  milestoneDialog.showModal();
+}
+
+$("#saveMilestone").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const chId = $("#milestoneChallengeId").value;
+  const km = parseFloat($("#milestoneKm").value);
+  const note = $("#milestoneNote").value.trim();
+  const ch = state.challenges.find((c) => c.id === chId);
+  if (!ch) return;
+
+  if (!Number.isFinite(km) || km <= 0) {
+    alert("Please enter a valid positive distance.");
+    return;
+  }
+  const target = Number(ch.targetDistanceKm || 0);
+  if (target > 0 && km > target) {
+    alert(`Milestone must be ≤ target distance (${fmt(target)} km).`);
+    return;
+  }
+
+  const existing = normalizeMilestones(ch);
+  if (existing.some((m) => Math.abs(m.distanceKm - km) < 1e-9)) {
+    alert("A milestone at this distance already exists.");
+    return;
+  }
+
+  const next = normalizeMilestones({
+    ...ch,
+    milestones: [...existing, { id: newId(), distanceKm: km, note }],
+  });
+
+  await window.api.updateChallenge(chId, { milestones: next });
+  milestoneDialog.close();
   await refresh();
 });
 
@@ -387,6 +523,7 @@ $("#content").addEventListener("click", async (e) => {
   const id = btn.dataset.id;
   if (action === "log") openLogDialog(id);
   if (action === "update-progress") openUpdateProgressDialog(id);
+  if (action === "add-milestone") openMilestoneDialog(id);
   if (action === "edit") {
     const ch = state.challenges.find((c) => c.id === id);
     openChallengeDialog(ch);
@@ -420,6 +557,16 @@ $("#content").addEventListener("click", async (e) => {
   if (action === "view-all") {
     const ch = state.challenges.find((c) => c.id === id);
     openActivitiesDialog(ch);
+  }
+  if (action === "delete-milestone") {
+    const msId = btn.dataset.ms;
+    const ch = state.challenges.find((c) => c.id === id);
+    if (!ch) return;
+    if (confirm("Remove this milestone?")) {
+      const next = normalizeMilestones(ch).filter((m) => m.id !== msId);
+      await window.api.updateChallenge(id, { milestones: next });
+      await refresh();
+    }
   }
 });
 
