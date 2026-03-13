@@ -263,12 +263,14 @@ function render() {
       milestones.forEach((m) => {
         const offset = milestoneVsPaceOffset(ch, d, m.distanceKm);
         const proj = projectedDateForDistance(ch, d, m.distanceKm);
+        const kmLeft = Math.max(0, m.distanceKm - d.done);
         const row = document.createElement("div");
         row.className = "milestone";
         row.innerHTML = `
           <div class="milestone-main">
             <div class="milestone-title">
               <span class="badge">At ${fmt(m.distanceKm)} km</span>
+              <span class="milestone-km-left ${kmLeft > 0 ? "" : "reached"}">${kmLeft > 0 ? `${fmt(kmLeft)} km left` : "✓ Reached"}</span>
               ${m.note ? `<span class="small">${m.note}</span>` : ""}
             </div>
             <div class="milestone-kpis">

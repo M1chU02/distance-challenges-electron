@@ -248,6 +248,14 @@ dialog {
   gap: 8px;
   flex-wrap: wrap;
 }
+.milestone-km-left {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.milestone-km-left.reached {
+  color: var(--accent-2);
+}
 .milestone-kpis {
   display: flex;
   align-items: center;
