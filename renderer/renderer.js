@@ -669,24 +669,35 @@ $("#activitiesDialog").addEventListener("click", async (e) => {
 const overlay = document.getElementById("updateOverlay");
 const bar = document.getElementById("updateBar");
 const msg = document.getElementById("updateMsg");
+function showUpdateOverlay() {
+  overlay.hidden = false;
+}
+function hideUpdateOverlay() {
+  overlay.hidden = true;
+}
 document
   .getElementById("updClose")
-  .addEventListener("click", () => (overlay.hidden = true));
+  .addEventListener("click", hideUpdateOverlay);
 document
   .getElementById("checkUpdateBtn")
   .addEventListener("click", async () => {
-    overlay.hidden = false;
+    showUpdateOverlay();
     msg.textContent = "Checking for updates…";
     bar.style.width = "10%";
     try {
       const res = await window.api.checkForUpdates();
-      if (!res.ok && res.reason === "dev") {
-        msg.textContent = "Dev mode: No updates.";
+      if (!res.ok) {
+        if (res.reason === "dev") {
+          msg.textContent = "Dev mode: No updates.";
+        } else {
+          msg.textContent = "Update check failed: " + (res.error || "Unknown error");
+        }
         bar.style.width = "100%";
-        setTimeout(() => (overlay.hidden = true), 2000);
+        setTimeout(hideUpdateOverlay, 3000);
       }
     } catch (err) {
       msg.textContent = "Error: " + String(err);
+      bar.style.width = "100%";
     }
   });
 
@@ -713,7 +724,7 @@ window.api.onUpdateStatus((p) => {
       "restarting",
     ].includes(p.status)
   )
-    overlay.hidden = false;
+    showUpdateOverlay();
 
   switch (p.status) {
     case "checking":
@@ -738,7 +749,7 @@ window.api.onUpdateStatus((p) => {
     case "none":
       msg.textContent = "No updates available.";
       bar.style.width = "100%";
-      setTimeout(() => (overlay.hidden = true), 1500);
+      setTimeout(hideUpdateOverlay, 1500);
       break;
     case "error":
       msg.textContent = `Update error: ${p.message || "unknown"}`;

@@ -49,6 +49,12 @@ function createWindow() {
   return win;
 }
 
+function send(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
 function initAutoUpdate() {
   if (isDev) return;
 
