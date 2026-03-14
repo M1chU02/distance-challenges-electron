@@ -1,8 +1,8 @@
-version: 1.0.9
+version: 1.1.0
 files:
-  - url: Distance-Challenges-Setup-1.0.9.exe
-    sha512: 70uUPtz6/OfcWG/lRbikSoz8rVhROXtVRrMfh2CI40bCwSYHEHP/KzGMHg0gjwv2/6soOTdiPwGMVQsHDYXutA==
-    size: 81668361
-path: Distance-Challenges-Setup-1.0.9.exe
-sha512: 70uUPtz6/OfcWG/lRbikSoz8rVhROXtVRrMfh2CI40bCwSYHEHP/KzGMHg0gjwv2/6soOTdiPwGMVQsHDYXutA==
-releaseDate: '2026-03-13T16:14:38.090Z'
+  - url: Distance-Challenges-Setup-1.1.0.exe
+    sha512: Zfqe8vFaKzbpuG4O/wZ4pnRLaznkrjGbqSpIGufIhQebHqSW/NDrdL/yhEjnEg9lStLXfz/OsC1zNMclHg9VZQ==
+    size: 81668422
+path: Distance-Challenges-Setup-1.1.0.exe
+sha512: Zfqe8vFaKzbpuG4O/wZ4pnRLaznkrjGbqSpIGufIhQebHqSW/NDrdL/yhEjnEg9lStLXfz/OsC1zNMclHg9VZQ==
+releaseDate: '2026-03-14T10:30:09.796Z'
