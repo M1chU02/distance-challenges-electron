@@ -172,6 +172,32 @@ function milestoneVsPaceOffset(ch, d, milestoneKm) {
   return d.done - expectedByNow;
 }
 
+function milestoneReachedInfo(ch, d, milestoneKm) {
+  const m = Number(milestoneKm || 0);
+  if (!Number.isFinite(m) || m <= 0 || d.totalDays <= 0 || d.done < m) return null;
+  const sorted = [...(ch.distanceLog || [])].sort((a, b) =>
+    a.dateISO.localeCompare(b.dateISO),
+  );
+  let cumulative = 0;
+  let reachedDate = null;
+  let cumulativeAtReach = 0;
+  for (const entry of sorted) {
+    cumulative += Number(entry.km || 0);
+    if (cumulative >= m) {
+      reachedDate = entry.dateISO;
+      cumulativeAtReach = cumulative;
+      break;
+    }
+  }
+  if (!reachedDate) return null;
+  const elapsedAtReach = daysElapsed(ch.startDate, reachedDate);
+  const elapsedPaceCapped = Math.min(d.totalDays, elapsedAtReach);
+  const avgNeeded = m / d.totalDays;
+  const expectedByThen = Math.min(m, avgNeeded * elapsedPaceCapped);
+  const vsPaceOffset = cumulativeAtReach - expectedByThen;
+  return { date: reachedDate, vsPaceOffset };
+}
+
 function render() {
   const root = $("#content");
   root.innerHTML = "";
@@ -261,22 +287,31 @@ function render() {
       milestoneList.appendChild(empty);
     } else {
       milestones.forEach((m) => {
-        const offset = milestoneVsPaceOffset(ch, d, m.distanceKm);
-        const proj = projectedDateForDistance(ch, d, m.distanceKm);
         const kmLeft = Math.max(0, m.distanceKm - d.done);
+        const reached = kmLeft === 0;
+        const offset = reached ? null : milestoneVsPaceOffset(ch, d, m.distanceKm);
+        const proj = reached ? null : projectedDateForDistance(ch, d, m.distanceKm);
+        const reachedInfo = reached ? milestoneReachedInfo(ch, d, m.distanceKm) : null;
         const row = document.createElement("div");
         row.className = "milestone";
         row.innerHTML = `
           <div class="milestone-main">
             <div class="milestone-title">
               <span class="badge">At ${fmt(m.distanceKm)} km</span>
-              <span class="milestone-km-left ${kmLeft > 0 ? "" : "reached"}">${kmLeft > 0 ? `${fmt(kmLeft)} km left` : "✓ Reached"}</span>
+              <span class="milestone-km-left ${reached ? "reached" : ""}">${reached ? "✓ Reached" : `${fmt(kmLeft)} km left`}</span>
               ${m.note ? `<span class="small">${m.note}</span>` : ""}
             </div>
+            ${!reached ? `
             <div class="milestone-kpis">
               <div class="small">vs pace: <b style="color:${offset >= 0 ? "#4ade80" : "#f87171"}">${fmtSignedKm(offset)}</b></div>
               <div class="small">projected: <b>${proj}</b></div>
             </div>
+            ` : reachedInfo ? `
+            <div class="milestone-kpis">
+              <div class="small">reached: <b>${reachedInfo.date}</b></div>
+              <div class="small">vs pace when reached: <b style="color:${reachedInfo.vsPaceOffset >= 0 ? "#4ade80" : "#f87171"}">${fmtSignedKm(reachedInfo.vsPaceOffset)}</b></div>
+            </div>
+            ` : ""}
           </div>
           <button class="btn danger" data-action="delete-milestone" data-id="${ch.id}" data-ms="${m.id}">Remove</button>
         `;
