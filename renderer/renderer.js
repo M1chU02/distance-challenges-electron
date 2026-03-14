@@ -669,11 +669,14 @@ $("#activitiesDialog").addEventListener("click", async (e) => {
 const overlay = document.getElementById("updateOverlay");
 const bar = document.getElementById("updateBar");
 const msg = document.getElementById("updateMsg");
+let isManualUpdateCheck = false;
+
 function showUpdateOverlay() {
-  overlay.hidden = false;
+  overlay.style.display = "grid";
 }
 function hideUpdateOverlay() {
-  overlay.hidden = true;
+  overlay.style.display = "none";
+  isManualUpdateCheck = false;
 }
 document
   .getElementById("updClose")
@@ -681,6 +684,7 @@ document
 document
   .getElementById("checkUpdateBtn")
   .addEventListener("click", async () => {
+    isManualUpdateCheck = true;
     showUpdateOverlay();
     msg.textContent = "Checking for updates…";
     bar.style.width = "10%";
@@ -714,6 +718,8 @@ function fmtBytes(n) {
 }
 
 window.api.onUpdateStatus((p) => {
+  if (!isManualUpdateCheck) return;
+
   if (
     [
       "checking",
