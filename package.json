@@ -1,6 +1,6 @@
 {
   "name": "distance-challenges-tracker",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Electron app to track multi-sport distance challenges (running, cycling, etc.) with pacing math and progress tracking.",
   "main": "main.js",
   "type": "commonjs",
@@ -13,6 +13,7 @@
   "build": {
     "appId": "com.example.distancechallenges",
     "productName": "Distance Challenges",
+    "artifactName": "Distance-Challenges-Setup-${version}.${ext}",
     "files": [
       "main.js",
       "preload.js",
