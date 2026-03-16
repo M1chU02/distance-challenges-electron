@@ -3,6 +3,7 @@ directories:
   buildResources: build
 appId: com.example.distancechallenges
 productName: Distance Challenges
+artifactName: Distance-Challenges-Setup-${version}.${ext}
 files:
   - filter:
       - main.js
