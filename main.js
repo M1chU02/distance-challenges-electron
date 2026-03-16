@@ -115,6 +115,8 @@ ipcMain.handle("update:check", async () => {
   }
 });
 
+ipcMain.handle("app:version", () => app.getVersion());
+
 app.whenReady().then(() => {
   mainWindow = createWindow();
   initAutoUpdate();

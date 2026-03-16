@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld("api", {
   addLog: (id, dateISO, km, note) =>
     ipcRenderer.invoke("logs:add", { id, dateISO, km, note }),
   deleteLog: (id, logId) => ipcRenderer.invoke("logs:delete", { id, logId }),
+  getVersion: () => ipcRenderer.invoke("app:version"),
 });

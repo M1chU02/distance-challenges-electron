@@ -767,6 +767,14 @@ window.api.onUpdateStatus((p) => {
   }
 });
 
+// Fetch and display app version on startup
+window.api.getVersion().then((version) => {
+  const versionEl = document.getElementById("appVersion");
+  if (versionEl) {
+    versionEl.textContent = `v${version}`;
+  }
+}).catch(console.error);
+
 refresh().catch((err) => {
   console.error(err);
   const root = document.getElementById("content");

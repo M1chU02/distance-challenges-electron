@@ -37,6 +37,16 @@ h1 {
   font-size: 22px;
   margin: 0;
 }
+.header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.app-version {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
 #content {
   padding: 20px;
   display: grid;
