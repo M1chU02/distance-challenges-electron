@@ -1,7 +1,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const state = { challenges: [] };
+const state = { challenges: [], showArchived: false };
 
 function fmt(n) {
   const num = Number(n || 0);
@@ -202,16 +202,39 @@ function render() {
   const root = $("#content");
   root.innerHTML = "";
 
-  if (state.challenges.length === 0) {
+  // Update toggle button text/style based on current state
+  const viewArchivedBtn = $("#viewArchivedBtn");
+  if (viewArchivedBtn) {
+    if (state.showArchived) {
+      viewArchivedBtn.textContent = "🏁 View Active";
+      viewArchivedBtn.classList.add("active-toggle");
+    } else {
+      viewArchivedBtn.textContent = "📁 View Archived";
+      viewArchivedBtn.classList.remove("active-toggle");
+    }
+  }
+
+  // Filter based on archived state
+  const filtered = state.challenges.filter((ch) => {
+    const isArchived = !!ch.archived;
+    return state.showArchived ? isArchived : !isArchived;
+  });
+
+  if (filtered.length === 0) {
     const empty = document.createElement("div");
     empty.className = "card";
-    empty.innerHTML = `<h3>No challenges yet</h3>
-      <p class="small">Click <b>+ New Challenge</b> to set up your first goal (e.g., 1315 km in 96 days). We'll calculate daily targets and track your pace.</p>`;
+    if (state.showArchived) {
+      empty.innerHTML = `<h3>No archived challenges</h3>
+        <p class="small">Completed or ended goals can be archived using the <b>Archive</b> button on the challenge card to clean up your active workspace.</p>`;
+    } else {
+      empty.innerHTML = `<h3>No active challenges yet</h3>
+        <p class="small">Click <b>+ New Challenge</b> to set up your first goal (e.g., 1315 km in 96 days). We'll calculate daily targets and track your pace.</p>`;
+    }
     root.appendChild(empty);
     return;
   }
 
-  state.challenges.forEach((ch) => {
+  filtered.forEach((ch) => {
     const d = derive(ch);
     const card = document.createElement("div");
     card.className = "card";
@@ -220,8 +243,15 @@ function render() {
       ? `<div style="background:#ff4444;color:white;padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px;">⚠️ ${d.error}</div>`
       : "";
 
+    const archivedBadge = ch.archived
+      ? `<span class="badge" style="background:#1e293b;color:#94a3b8;border-color:#334155;font-weight:bold;margin-left:auto;">📁 Archived</span>`
+      : "";
+
     card.innerHTML = `
-      <h3>${ch.name}</h3>
+      <div class="row" style="align-items: center; margin-bottom: 6px;">
+        <h3 style="margin: 0;">${ch.name}</h3>
+        ${archivedBadge}
+      </div>
       <div class="meta">${ch.sport} • ${ch.startDate || "N/A"} → ${ch.endDate || "N/A"}</div>
       ${errorBanner}
       <div class="row" style="margin-bottom:8px;">
@@ -258,19 +288,18 @@ function render() {
       <div class="milestones">
         <div class="milestones-header">
           <div class="small">Milestones</div>
-          <button class="btn" data-action="add-milestone" data-id="${ch.id}">+ Add Milestone</button>
+          ${ch.archived ? "" : `<button class="btn" data-action="add-milestone" data-id="${ch.id}">+ Add Milestone</button>`}
         </div>
         <div class="milestone-list"></div>
       </div>
       <div class="actions">
-        <button class="btn primary" data-action="log" data-id="${
-          ch.id
-        }">Log distance</button>
-        <button class="btn primary" data-action="update-progress" data-id="${ch.id}">Update Progress</button>
-        <button class="btn" data-action="edit" data-id="${ch.id}">Edit</button>
-        <button class="btn danger" data-action="delete" data-id="${
-          ch.id
-        }">Delete</button>
+        ${ch.archived ? "" : `
+          <button class="btn primary" data-action="log" data-id="${ch.id}">Log distance</button>
+          <button class="btn primary" data-action="update-progress" data-id="${ch.id}">Update Progress</button>
+          <button class="btn" data-action="edit" data-id="${ch.id}">Edit</button>
+        `}
+        <button class="btn" data-action="toggle-archive" data-id="${ch.id}">${ch.archived ? "🏁 Unarchive" : "📁 Archive"}</button>
+        <button class="btn danger" data-action="delete" data-id="${ch.id}">Delete</button>
       </div>
       <div class="logs">
         <div class="small" style="margin-bottom:6px;">Recent logs</div>
@@ -313,7 +342,7 @@ function render() {
             </div>
             ` : ""}
           </div>
-          <button class="btn danger" data-action="delete-milestone" data-id="${ch.id}" data-ms="${m.id}">Remove</button>
+          ${ch.archived ? "" : `<button class="btn danger" data-action="delete-milestone" data-id="${ch.id}" data-ms="${m.id}">Remove</button>`}
         `;
         milestoneList.appendChild(row);
       });
@@ -329,9 +358,9 @@ function render() {
       row.innerHTML = `<div>${l.dateISO} • <b>${fmt(l.km)}</b> km ${
         l.note ? "• " + l.note : ""
       }</div>
-        <button class="btn" data-action="delete-log" data-id="${
+        ${ch.archived ? "" : `<button class="btn" data-action="delete-log" data-id="${
           ch.id
-        }" data-log="${l.id}">Remove</button>`;
+        }" data-log="${l.id}">Remove</button>`}`;
       logList.appendChild(row);
     });
 
@@ -364,6 +393,11 @@ const activitiesDialog = $("#activitiesDialog");
 const milestoneDialog = $("#milestoneDialog");
 
 $("#newChallengeBtn").addEventListener("click", () => openChallengeDialog());
+
+$("#viewArchivedBtn").addEventListener("click", () => {
+  state.showArchived = !state.showArchived;
+  render();
+});
 
 function openChallengeDialog(ch = null) {
   $("#dialogTitle").textContent = ch ? "Edit Challenge" : "New Challenge";
@@ -564,6 +598,14 @@ $("#content").addEventListener("click", async (e) => {
   if (action === "edit") {
     const ch = state.challenges.find((c) => c.id === id);
     openChallengeDialog(ch);
+  }
+  if (action === "toggle-archive") {
+    const ch = state.challenges.find((c) => c.id === id);
+    if (ch) {
+      const updatedArchived = !ch.archived;
+      await window.api.updateChallenge(id, { archived: updatedArchived });
+      await refresh();
+    }
   }
   if (action === "delete") {
     if (confirm("Delete this challenge?")) {

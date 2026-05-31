@@ -153,6 +153,7 @@ ipcMain.handle("challenges:create", (event, payload) => {
     targetDistanceKm: Number(payload.targetDistanceKm) || 0,
     distanceLog: [],
     notes: payload.notes || "",
+    archived: false,
     createdAt: now,
     updatedAt: now,
   };
