@@ -5,6 +5,7 @@ const Store = require("electron-store");
 const { nanoid } = require("nanoid");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
+const fs = require("fs"); // For data export/import
 
 log.transports.file.level = "info";
 autoUpdater.logger = log;
@@ -132,7 +133,7 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-// Helper
+// Helper functions for challenge storage
 function listChallenges() {
   return store.get("challenges");
 }
@@ -204,4 +205,46 @@ ipcMain.handle("logs:delete", (event, { id, logId }) => {
   challenges[idx].updatedAt = new Date().toISOString();
   saveChallenges(challenges);
   return { ok: true };
+});
+
+// Data export/import handlers
+ipcMain.handle("data:export", async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: "Export Data",
+    defaultPath: "distance-challenges-data.json",
+    filters: [{ name: "JSON Files", extensions: ["json"] }],
+  });
+  if (canceled || !filePath) {
+    return { ok: false, reason: "canceled" };
+  }
+  try {
+    const data = store.get("challenges");
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    return { ok: true, path: filePath };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle("data:import", async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: "Import Data",
+    buttonLabel: "Import",
+    filters: [{ name: "JSON Files", extensions: ["json"] }],
+    properties: ["openFile"],
+  });
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return { ok: false, reason: "canceled" };
+  }
+  try {
+    const content = fs.readFileSync(filePaths[0], "utf-8");
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Invalid data format");
+    }
+    store.set("challenges", parsed);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 });

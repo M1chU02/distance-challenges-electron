@@ -18,7 +18,7 @@
         <span id="appVersion" class="app-version"></span>
       </div>
       <div class="row">
-        <button id="checkUpdateBtn" class="btn">Check Updates</button>
+        <button id="settingsBtn" class="btn">⚙️ Settings</button>
         <button id="viewArchivedBtn" class="btn">📁 View Archived</button>
         <button id="newChallengeBtn" class="btn primary">
           + New Challenge
@@ -26,7 +26,7 @@
       </div>
     </header>
 
-    <div id="updateOverlay" class="update-overlay" style="display: none;">
+    <div id="updateOverlay" class="update-overlay" style="display: none">
       <div class="update-card">
         <div class="update-title">Updating App…</div>
         <div id="updateMsg" class="update-msg">Preparing…</div>
@@ -190,6 +190,36 @@
         <menu class="dialog-actions">
           <button value="cancel" class="btn" formnovalidate>Cancel</button>
           <button id="saveMilestone" class="btn primary">Add</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- Settings Dialog -->
+    <dialog id="settingsDialog">
+      <form method="dialog" class="dialog-form">
+        <h3>Settings</h3>
+        <section>
+          <h4>App Theme</h4>
+          <p>Current theme: Dark (fixed).</p>
+        </section>
+        <section>
+          <h4>User Management</h4>
+          <button id="loginBtn" class="btn">Login</button>
+          <button id="registerBtn" class="btn">Register</button>
+        </section>
+        <section>
+          <h4>Data</h4>
+          <button id="exportBtn" class="btn primary">Export Data</button>
+          <button id="importBtn" class="btn">Import Data</button>
+        </section>
+        <section>
+          <h4>Updates</h4>
+          <button id="settingsCheckUpdatesBtn" class="btn">
+            Check Updates
+          </button>
+        </section>
+        <menu class="dialog-actions">
+          <button value="cancel" class="btn" formnovalidate>Close</button>
         </menu>
       </form>
     </dialog>

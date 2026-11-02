@@ -63,7 +63,7 @@ function derive(ch) {
       start.toISOString(),
       new Date(end.getTime() + 24 * 3600 * 1000).toISOString(),
     ); // inclusive end
-    
+
     // Cap elapsed days at totalDays if the challenge has ended
     const actualElapsed = daysElapsed(start.toISOString(), today.toISOString());
     const elapsedPace = Math.min(totalDays, actualElapsed);
@@ -90,7 +90,10 @@ function derive(ch) {
       projectedFinish = "Expired";
     } else if (currentPace > 0) {
       const daysNeededTotal = ch.targetDistanceKm / currentPace;
-      const extraDaysNeeded = Math.max(0, Math.ceil(daysNeededTotal - actualElapsed));
+      const extraDaysNeeded = Math.max(
+        0,
+        Math.ceil(daysNeededTotal - actualElapsed),
+      );
       const proj = new Date(today);
       proj.setDate(proj.getDate() + extraDaysNeeded);
       projectedFinish = proj.toISOString().slice(0, 10);
@@ -174,7 +177,8 @@ function milestoneVsPaceOffset(ch, d, milestoneKm) {
 
 function milestoneReachedInfo(ch, d, milestoneKm) {
   const m = Number(milestoneKm || 0);
-  if (!Number.isFinite(m) || m <= 0 || d.totalDays <= 0 || d.done < m) return null;
+  if (!Number.isFinite(m) || m <= 0 || d.totalDays <= 0 || d.done < m)
+    return null;
   const sorted = [...(ch.distanceLog || [])].sort((a, b) =>
     a.dateISO.localeCompare(b.dateISO),
   );
@@ -293,11 +297,15 @@ function render() {
         <div class="milestone-list"></div>
       </div>
       <div class="actions">
-        ${ch.archived ? "" : `
+        ${
+          ch.archived
+            ? ""
+            : `
           <button class="btn primary" data-action="log" data-id="${ch.id}">Log distance</button>
           <button class="btn primary" data-action="update-progress" data-id="${ch.id}">Update Progress</button>
           <button class="btn" data-action="edit" data-id="${ch.id}">Edit</button>
-        `}
+        `
+        }
         <button class="btn" data-action="toggle-archive" data-id="${ch.id}">${ch.archived ? "🏁 Unarchive" : "📁 Archive"}</button>
         <button class="btn danger" data-action="delete" data-id="${ch.id}">Delete</button>
       </div>
@@ -318,9 +326,15 @@ function render() {
       milestones.forEach((m) => {
         const kmLeft = Math.max(0, m.distanceKm - d.done);
         const reached = kmLeft === 0;
-        const offset = reached ? null : milestoneVsPaceOffset(ch, d, m.distanceKm);
-        const proj = reached ? null : projectedDateForDistance(ch, d, m.distanceKm);
-        const reachedInfo = reached ? milestoneReachedInfo(ch, d, m.distanceKm) : null;
+        const offset = reached
+          ? null
+          : milestoneVsPaceOffset(ch, d, m.distanceKm);
+        const proj = reached
+          ? null
+          : projectedDateForDistance(ch, d, m.distanceKm);
+        const reachedInfo = reached
+          ? milestoneReachedInfo(ch, d, m.distanceKm)
+          : null;
         const row = document.createElement("div");
         row.className = "milestone";
         row.innerHTML = `
@@ -330,17 +344,23 @@ function render() {
               <span class="milestone-km-left ${reached ? "reached" : ""}">${reached ? "✓ Reached" : `${fmt(kmLeft)} km left`}</span>
               ${m.note ? `<span class="small">${m.note}</span>` : ""}
             </div>
-            ${!reached ? `
+            ${
+              !reached
+                ? `
             <div class="milestone-kpis">
               <div class="small">vs pace: <b style="color:${offset >= 0 ? "#4ade80" : "#f87171"}">${fmtSignedKm(offset)}</b></div>
               <div class="small">projected: <b>${proj}</b></div>
             </div>
-            ` : reachedInfo ? `
+            `
+                : reachedInfo
+                  ? `
             <div class="milestone-kpis">
               <div class="small">reached: <b>${reachedInfo.date}</b></div>
               <div class="small">vs pace when reached: <b style="color:${reachedInfo.vsPaceOffset >= 0 ? "#4ade80" : "#f87171"}">${fmtSignedKm(reachedInfo.vsPaceOffset)}</b></div>
             </div>
-            ` : ""}
+            `
+                  : ""
+            }
           </div>
           ${ch.archived ? "" : `<button class="btn danger" data-action="delete-milestone" data-id="${ch.id}" data-ms="${m.id}">Remove</button>`}
         `;
@@ -358,9 +378,13 @@ function render() {
       row.innerHTML = `<div>${l.dateISO} • <b>${fmt(l.km)}</b> km ${
         l.note ? "• " + l.note : ""
       }</div>
-        ${ch.archived ? "" : `<button class="btn" data-action="delete-log" data-id="${
-          ch.id
-        }" data-log="${l.id}">Remove</button>`}`;
+        ${
+          ch.archived
+            ? ""
+            : `<button class="btn" data-action="delete-log" data-id="${
+                ch.id
+              }" data-log="${l.id}">Remove</button>`
+        }`;
       logList.appendChild(row);
     });
 
@@ -391,12 +415,38 @@ const challengeDialog = $("#challengeDialog");
 const logDialog = $("#logDialog");
 const activitiesDialog = $("#activitiesDialog");
 const milestoneDialog = $("#milestoneDialog");
+const settingsDialog = $("#settingsDialog");
 
 $("#newChallengeBtn").addEventListener("click", () => openChallengeDialog());
-
+$("#settingsBtn").addEventListener("click", () => settingsDialog.showModal());
 $("#viewArchivedBtn").addEventListener("click", () => {
   state.showArchived = !state.showArchived;
   render();
+});
+
+// Settings dialog interactions
+$("#loginBtn").addEventListener("click", () =>
+  alert("Login functionality not implemented yet."),
+);
+$("#registerBtn").addEventListener("click", () =>
+  alert("Register functionality not implemented yet."),
+);
+$("#exportBtn").addEventListener("click", async () => {
+  const res = await window.api.exportData();
+  if (res.ok) {
+    alert("Data exported to " + res.path);
+  } else if (res.reason !== "canceled") {
+    alert("Export failed: " + (res.error || "Unknown error"));
+  }
+});
+$("#importBtn").addEventListener("click", async () => {
+  const res = await window.api.importData();
+  if (res.ok) {
+    alert("Data imported successfully.");
+    await refresh();
+  } else if (res.reason !== "canceled") {
+    alert("Import failed: " + (res.error || "Unknown error"));
+  }
 });
 
 function openChallengeDialog(ch = null) {
@@ -617,15 +667,8 @@ $("#content").addEventListener("click", async (e) => {
     const logId = btn.dataset.log;
     if (confirm("Remove this log entry?")) {
       await window.api.deleteLog(id, logId);
-      // Close all dialogs just in case, or refresh specific one.
-      // Easiest is to refresh data and re-render.
-      // If we are in "View All", we might want to keep it open or close it.
-      // Simpler to close specific dialog or let refresh handle main UI.
-      // But if we are in activitiesDialog, we need to re-render that list too or close it.
-      // Current flow:
       await refresh();
 
-      // If activities dialog is open, re-render its list if valid
       if (activitiesDialog.open) {
         const updatedCh = state.challenges.find((c) => c.id === id);
         if (updatedCh) openActivitiesDialog(updatedCh);
@@ -671,16 +714,6 @@ function openActivitiesDialog(ch) {
     list.appendChild(row);
   });
 
-  // Need to bind events inside the dialog?
-  // Actually the main #content listener handles bubbling, BUT this dialog is NOT inside #content.
-  // We need a listener on the dialog or ensuring bubbling reaches body/document if possible,
-  // but dialogs usually trap focus/events.
-  // Let's check where the dialog is in DOM. It is a sibling of #content.
-  // So #content listener WON'T catch clicks inside the dialog.
-
-  // Let's add listener to the list container once, or delegated.
-  // We can attach `onclick` to the list container here or global listener.
-  // To avoid duplicate listeners, let's just make a global delegated listener for the dialog.
   activitiesDialog.showModal();
 }
 
@@ -697,7 +730,6 @@ $("#activitiesDialog").addEventListener("click", async (e) => {
     if (confirm("Remove this log entry?")) {
       await window.api.deleteLog(chId, logId);
       await refresh();
-      // Re-hydrate the dialog view
       const updatedCh = state.challenges.find((c) => c.id === chId);
       if (updatedCh && activitiesDialog.open) {
         openActivitiesDialog(updatedCh);
@@ -720,32 +752,29 @@ function hideUpdateOverlay() {
   overlay.style.display = "none";
   isManualUpdateCheck = false;
 }
-document
-  .getElementById("updClose")
-  .addEventListener("click", hideUpdateOverlay);
-document
-  .getElementById("checkUpdateBtn")
-  .addEventListener("click", async () => {
-    isManualUpdateCheck = true;
-    showUpdateOverlay();
-    msg.textContent = "Checking for updates…";
-    bar.style.width = "10%";
-    try {
-      const res = await window.api.checkForUpdates();
-      if (!res.ok) {
-        if (res.reason === "dev") {
-          msg.textContent = "Dev mode: No updates.";
-        } else {
-          msg.textContent = "Update check failed: " + (res.error || "Unknown error");
-        }
-        bar.style.width = "100%";
-        setTimeout(hideUpdateOverlay, 3000);
+$("#updClose").addEventListener("click", hideUpdateOverlay);
+$("#settingsCheckUpdatesBtn").addEventListener("click", async () => {
+  isManualUpdateCheck = true;
+  showUpdateOverlay();
+  msg.textContent = "Checking for updates…";
+  bar.style.width = "10%";
+  try {
+    const res = await window.api.checkForUpdates();
+    if (!res.ok) {
+      if (res.reason === "dev") {
+        msg.textContent = "Dev mode: No updates.";
+      } else {
+        msg.textContent =
+          "Update check failed: " + (res.error || "Unknown error");
       }
-    } catch (err) {
-      msg.textContent = "Error: " + String(err);
       bar.style.width = "100%";
+      setTimeout(hideUpdateOverlay, 3000);
     }
-  });
+  } catch (err) {
+    msg.textContent = "Error: " + String(err);
+    bar.style.width = "100%";
+  }
+});
 
 function fmtBytes(n) {
   if (!n && n !== 0) return "";
@@ -810,12 +839,15 @@ window.api.onUpdateStatus((p) => {
 });
 
 // Fetch and display app version on startup
-window.api.getVersion().then((version) => {
-  const versionEl = document.getElementById("appVersion");
-  if (versionEl) {
-    versionEl.textContent = `v${version}`;
-  }
-}).catch(console.error);
+window.api
+  .getVersion()
+  .then((version) => {
+    const versionEl = document.getElementById("appVersion");
+    if (versionEl) {
+      versionEl.textContent = `v${version}`;
+    }
+  })
+  .catch(console.error);
 
 refresh().catch((err) => {
   console.error(err);
