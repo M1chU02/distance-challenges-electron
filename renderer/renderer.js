@@ -121,6 +121,7 @@ function derive(ch) {
       projectedFinish,
       pct,
       paceOffset,
+      isCompleted,
       error: null,
     };
   } catch (err) {
@@ -142,6 +143,7 @@ function derive(ch) {
       projectedFinish: null,
       pct: 0,
       paceOffset: 0,
+      isCompleted: done >= Number(ch.targetDistanceKm || 0),
       error: "Invalid dates - please edit this challenge to fix",
     };
   }
@@ -241,7 +243,7 @@ function render() {
   filtered.forEach((ch) => {
     const d = derive(ch);
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = d.isCompleted ? "card card-completed" : "card";
 
     const errorBanner = d.error
       ? `<div style="background:#ff4444;color:white;padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px;">⚠️ ${d.error}</div>`
@@ -250,10 +252,14 @@ function render() {
     const archivedBadge = ch.archived
       ? `<span class="badge" style="background:#1e293b;color:#94a3b8;border-color:#334155;font-weight:bold;margin-left:auto;">📁 Archived</span>`
       : "";
+    const completeBadge = d.isCompleted
+      ? `<span class="badge badge-complete">🏆 Completed</span>`
+      : "";
 
     card.innerHTML = `
       <div class="row" style="align-items: center; margin-bottom: 6px;">
         <h3 style="margin: 0;">${ch.name}</h3>
+        ${completeBadge}
         ${archivedBadge}
       </div>
       <div class="meta">${ch.sport} • ${ch.startDate || "N/A"} → ${ch.endDate || "N/A"}</div>
@@ -410,6 +416,225 @@ async function refresh() {
   render();
 }
 
+const SFX_KEY = "distanceChallenges.sfxEnabled";
+function sfxEnabled() {
+  const v = localStorage.getItem(SFX_KEY);
+  return v === null ? true : v === "true";
+}
+function setSfxEnabled(on) {
+  localStorage.setItem(SFX_KEY, on ? "true" : "false");
+}
+
+let audioCtx = null;
+function getAudioCtx() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!audioCtx) audioCtx = new AC();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone({
+  freq,
+  start = 0,
+  duration = 0.18,
+  type = "triangle",
+  gain = 0.07,
+  slideTo,
+}) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+  if (slideTo) {
+    osc.frequency.exponentialRampToValueAtTime(
+      slideTo,
+      ctx.currentTime + start + duration,
+    );
+  }
+  const t0 = ctx.currentTime + start;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.02);
+}
+
+function playSfx(kind) {
+  if (!sfxEnabled()) return;
+  if (kind === "log") {
+    playTone({ freq: 620, duration: 0.08, type: "sine", gain: 0.04 });
+    playTone({
+      freq: 920,
+      start: 0.05,
+      duration: 0.1,
+      type: "triangle",
+      gain: 0.035,
+    });
+  } else if (kind === "milestone") {
+    playTone({ freq: 523.25, duration: 0.14, type: "triangle", gain: 0.06 });
+    playTone({
+      freq: 659.25,
+      start: 0.1,
+      duration: 0.16,
+      type: "triangle",
+      gain: 0.06,
+    });
+    playTone({
+      freq: 783.99,
+      start: 0.2,
+      duration: 0.22,
+      type: "sine",
+      gain: 0.05,
+    });
+  } else if (kind === "complete") {
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      playTone({
+        freq,
+        start: i * 0.12,
+        duration: 0.28,
+        type: "triangle",
+        gain: 0.08,
+      });
+    });
+    playTone({
+      freq: 1568,
+      start: 0.52,
+      duration: 0.45,
+      type: "sine",
+      gain: 0.04,
+      slideTo: 2093,
+    });
+  }
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+let confettiRaf = 0;
+function stopConfetti() {
+  if (confettiRaf) cancelAnimationFrame(confettiRaf);
+  confettiRaf = 0;
+}
+
+function burstConfetti(durationMs = 2800) {
+  const canvas = $("#confettiCanvas");
+  if (!canvas || prefersReducedMotion()) return;
+  const ctx = canvas.getContext("2d");
+  const resize = () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  };
+  resize();
+  const colors = ["#6aa5ff", "#7cf5a6", "#fde047", "#fb7185", "#c084fc", "#fff"];
+  const pieces = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.4,
+    w: 6 + Math.random() * 7,
+    h: 8 + Math.random() * 10,
+    vx: -2 + Math.random() * 4,
+    vy: 2.5 + Math.random() * 4,
+    rot: Math.random() * Math.PI,
+    vr: -0.2 + Math.random() * 0.4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+  const started = performance.now();
+  stopConfetti();
+  const tick = (now) => {
+    const t = now - started;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, 1 - t / durationMs);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    if (t < durationMs) confettiRaf = requestAnimationFrame(tick);
+    else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      confettiRaf = 0;
+    }
+  };
+  confettiRaf = requestAnimationFrame(tick);
+}
+
+function hideCelebration() {
+  const overlay = $("#celebrateOverlay");
+  overlay.hidden = true;
+  stopConfetti();
+}
+
+function showCelebration(ch, d) {
+  $("#celebrateTitle").textContent = "Challenge complete!";
+  $("#celebrateName").textContent = ch.name;
+  $("#celebrateStat").textContent = `${fmt(d.done)} km of ${fmt(
+    ch.targetDistanceKm,
+  )} km — ${ch.sport}`;
+  $("#celebrateOverlay").hidden = false;
+  burstConfetti();
+  playSfx("complete");
+}
+
+function showToast(title, body) {
+  const stack = $("#toastStack");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.classList.add("out");
+    setTimeout(() => el.remove(), 280);
+  }, 3200);
+}
+
+function progressSnapshot(ch) {
+  const d = derive(ch);
+  const reached = new Set(
+    normalizeMilestones(ch)
+      .filter((m) => d.done >= m.distanceKm)
+      .map((m) => m.id),
+  );
+  return { complete: !!d.isCompleted, reached, done: d.done };
+}
+
+function celebrateProgress(id, before) {
+  const ch = state.challenges.find((c) => c.id === id);
+  if (!ch) return;
+  const after = progressSnapshot(ch);
+  const d = derive(ch);
+  if (!before.complete && after.complete) {
+    showCelebration(ch, d);
+    return;
+  }
+  const newly = [...after.reached].filter((msId) => !before.reached.has(msId));
+  if (newly.length) {
+    const last = normalizeMilestones(ch).find(
+      (m) => m.id === newly[newly.length - 1],
+    );
+    playSfx("milestone");
+    showToast(
+      "Milestone reached",
+      last
+        ? `${ch.name} — ${fmt(last.distanceKm)} km${last.note ? ` · ${last.note}` : ""}`
+        : ch.name,
+    );
+    return;
+  }
+  if (after.done !== before.done) playSfx("log");
+}
+
 // Dialog helpers
 const challengeDialog = $("#challengeDialog");
 const logDialog = $("#logDialog");
@@ -418,7 +643,22 @@ const milestoneDialog = $("#milestoneDialog");
 const settingsDialog = $("#settingsDialog");
 
 $("#newChallengeBtn").addEventListener("click", () => openChallengeDialog());
-$("#settingsBtn").addEventListener("click", () => settingsDialog.showModal());
+$("#settingsBtn").addEventListener("click", () => {
+  const toggle = $("#sfxToggle");
+  if (toggle) toggle.checked = sfxEnabled();
+  settingsDialog.showModal();
+});
+$("#sfxToggle")?.addEventListener("change", (e) => {
+  setSfxEnabled(e.target.checked);
+  if (e.target.checked) playSfx("log");
+});
+$("#celebrateDismiss").addEventListener("click", hideCelebration);
+$("#celebrateOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "celebrateOverlay") hideCelebration();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#celebrateOverlay").hidden) hideCelebration();
+});
 $("#viewArchivedBtn").addEventListener("click", () => {
   state.showArchived = !state.showArchived;
   render();
@@ -493,9 +733,12 @@ $("#saveLog").addEventListener("click", async (e) => {
   const dateISO = $("#logDate").value;
   const km = parseFloat($("#logKm").value);
   const note = $("#logNote").value.trim();
+  const chBefore = state.challenges.find((c) => c.id === id);
+  const before = chBefore ? progressSnapshot(chBefore) : null;
   await window.api.addLog(id, dateISO, km, note);
   logDialog.close();
   await refresh();
+  if (before) celebrateProgress(id, before);
 });
 
 function openMilestoneDialog(chId) {
@@ -631,10 +874,13 @@ $("#saveUpdate").addEventListener("click", async (e) => {
     }
   }
 
+  const chBefore = state.challenges.find((c) => c.id === id);
+  const before = chBefore ? progressSnapshot(chBefore) : null;
   await window.api.addLog(id, dateISO, kmToAdd, note);
   updateProgressDialog.close();
   currentChallengeForUpdate = null;
   await refresh();
+  if (before) celebrateProgress(id, before);
 });
 
 $("#content").addEventListener("click", async (e) => {

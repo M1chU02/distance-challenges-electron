@@ -39,6 +39,22 @@
 
     <main id="content"></main>
 
+    <div id="celebrateOverlay" class="celebrate-overlay" hidden>
+      <canvas id="confettiCanvas"></canvas>
+      <div class="celebrate-card" role="status" aria-live="polite">
+        <div class="celebrate-burst" aria-hidden="true">🎉</div>
+        <p class="celebrate-kicker">Goal smashed</p>
+        <h2 id="celebrateTitle">Challenge complete!</h2>
+        <p id="celebrateName" class="celebrate-name"></p>
+        <p id="celebrateStat" class="celebrate-stat"></p>
+        <button type="button" class="btn primary" id="celebrateDismiss">
+          Let’s go!
+        </button>
+      </div>
+    </div>
+
+    <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
     <!-- New/Edit Challenge Dialog -->
     <dialog id="challengeDialog">
       <form method="dialog" id="challengeForm" class="dialog-form">
@@ -201,6 +217,17 @@
         <section>
           <h4>App Theme</h4>
           <p>Current theme: Dark (fixed).</p>
+        </section>
+        <section>
+          <h4>Sound</h4>
+          <label class="radio-label" style="margin: 0">
+            <input type="checkbox" id="sfxToggle" checked />
+            <span>Play sound effects</span>
+          </label>
+          <p class="small" style="margin-top: 8px">
+            Fanfare when you finish a challenge, a ding for milestones, and a
+            short tick when you log distance.
+          </p>
         </section>
         <section>
           <h4>User Management</h4>
